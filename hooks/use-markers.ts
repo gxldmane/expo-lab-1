@@ -1,19 +1,26 @@
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { useMarkersStore } from "@/store";
-import { CreateMarkerData, MarkerUpdate, Coordinate } from "@/types";
+import { CreateMarkerData, Coordinate } from "@/types";
 
 export function useMarkers() {
   const {
     markers,
     error,
     isLoading,
+    isInitialized,
+    initialize,
     addMarker: addMarkerAction,
     removeMarker: removeMarkerAction,
-    updateMarker: updateMarkerAction,
-    updateMarkerImages,
     getMarker,
     clearError,
   } = useMarkersStore();
+
+  useEffect(() => {
+    if (!isInitialized) {
+      console.log("Initializing markers store...");
+      initialize();
+    }
+  }, [isInitialized, initialize]);
 
   const addMarker = useCallback(
     async (coordinate: Coordinate) => {
@@ -21,13 +28,6 @@ export function useMarkers() {
       return await addMarkerAction(data);
     },
     [addMarkerAction]
-  );
-
-  const updateMarker = useCallback(
-    async (markerId: string, updates: MarkerUpdate) => {
-      return await updateMarkerAction(markerId, updates);
-    },
-    [updateMarkerAction]
   );
 
   const removeMarker = useCallback(
@@ -43,8 +43,6 @@ export function useMarkers() {
     isLoading,
     addMarker,
     removeMarker,
-    updateMarker,
-    updateMarkerImages,
     getMarker,
     clearError,
   } as const;

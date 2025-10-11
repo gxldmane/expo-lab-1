@@ -1,180 +1,200 @@
 import { create } from "zustand";
-import { subscribeWithSelector } from "zustand/middleware";
-import {
-  MapMarker,
-  MarkerImage,
-  ErrorState,
-  CreateMarkerData,
-  MarkerUpdate,
-} from "@/types";
-import { generateId, createError, handleError } from "@/utils/helpers";
-import { MAP_CONFIG, ERROR_MESSAGES } from "@/constants/config";
+import { MapMarker, MarkerImage, ErrorState, CreateMarkerData } from "@/types";
+import { createError, handleError } from "@/utils/helpers";
+import { ERROR_MESSAGES } from "@/constants/config";
+import { markersRepository, initializeDatabase } from "@/database";
 
 interface MarkersState {
   readonly markers: readonly MapMarker[];
   readonly error: ErrorState | null;
   readonly isLoading: boolean;
+  readonly isInitialized: boolean;
 
+  initialize: () => Promise<void>;
+  loadMarkers: () => Promise<void>;
   addMarker: (data: CreateMarkerData) => Promise<string | null>;
   removeMarker: (markerId: string) => Promise<boolean>;
-  updateMarker: (markerId: string, updates: MarkerUpdate) => Promise<boolean>;
-  updateMarkerImages: (
+  saveImageToMarker: (
     markerId: string,
-    images: readonly MarkerImage[]
+    image: Omit<MarkerImage, "id">
+  ) => Promise<boolean>;
+  deleteImageFromMarker: (
+    markerId: string,
+    imageId: string
   ) => Promise<boolean>;
   getMarker: (markerId: string) => MapMarker | undefined;
   clearError: () => void;
   setError: (error: ErrorState | null) => void;
   setLoading: (loading: boolean) => void;
+  reset: () => Promise<void>;
 }
 
-const createNewMarker = (data: CreateMarkerData): MapMarker => {
-  const now = new Date();
-  return {
-    id: generateId(),
-    coordinate: data.coordinate,
-    title: data.title || MAP_CONFIG.MARKER_DEFAULTS.title,
-    description: data.description || MAP_CONFIG.MARKER_DEFAULTS.description,
-    images: [],
-    createdAt: now,
-    updatedAt: now,
-  };
-};
+export const useMarkersStore = create<MarkersState>((set, get) => ({
+  markers: [],
+  error: null,
+  isLoading: false,
+  isInitialized: false,
 
-export const useMarkersStore = create<MarkersState>()(
-  subscribeWithSelector((set, get) => ({
-    markers: [],
-    error: null,
-    isLoading: false,
+  initialize: async (): Promise<void> => {
+    const { isInitialized } = get();
+    if (isInitialized) {
+      console.log("Markers store already initialized");
+      return;
+    }
 
-    addMarker: async (data: CreateMarkerData): Promise<string | null> => {
-      try {
-        set({ isLoading: true, error: null });
+    try {
+      console.log("Starting markers store initialization...");
+      set({ isLoading: true, error: null });
+      await initializeDatabase();
+      console.log("Database initialized, loading markers...");
+      await get().loadMarkers();
+      console.log("Markers loaded, initialization complete");
+      set({ isInitialized: true, isLoading: false });
+    } catch (error) {
+      console.error("Failed to initialize markers store:", error);
+      const errorState = handleError(
+        error,
+        "Failed to initialize markers store"
+      );
+      set({ error: errorState, isLoading: false, isInitialized: false });
+      throw error;
+    }
+  },
 
-        const newMarker = createNewMarker(data);
+  loadMarkers: async (): Promise<void> => {
+    try {
+      set({ isLoading: true, error: null });
+      console.log("Loading markers from database...");
+      const markers = await markersRepository.getAllMarkers();
+      console.log(`Loaded ${markers.length} markers from database`);
+      set({ markers, isLoading: false, error: null });
+    } catch (error) {
+      const errorState = handleError(error, "Failed to load markers");
+      set({ error: errorState, isLoading: false });
+      throw error;
+    }
+  },
 
-        set((state) => ({
-          markers: [...state.markers, newMarker],
+  addMarker: async (data: CreateMarkerData): Promise<string | null> => {
+    try {
+      set({ isLoading: true, error: null });
+      const markerId = await markersRepository.createMarker(data);
+      await get().loadMarkers();
+      set({ isLoading: false, error: null });
+      return markerId;
+    } catch (error) {
+      const errorState = handleError(error, ERROR_MESSAGES.MARKER_ADD_FAILED);
+      set({ error: errorState, isLoading: false });
+      return null;
+    }
+  },
+
+  removeMarker: async (markerId: string): Promise<boolean> => {
+    try {
+      set({ isLoading: true, error: null });
+      const marker = get().getMarker(markerId);
+      if (!marker) {
+        set({
+          error: createError("general", ERROR_MESSAGES.MARKER_NOT_FOUND),
           isLoading: false,
-          error: null,
-        }));
-
-        return newMarker.id;
-      } catch (error) {
-        const errorState = handleError(error, ERROR_MESSAGES.MARKER_ADD_FAILED);
-        set({ error: errorState, isLoading: false });
-        return null;
-      }
-    },
-
-    removeMarker: async (markerId: string): Promise<boolean> => {
-      try {
-        set({ isLoading: true, error: null });
-
-        const { markers } = get();
-        const markerExists = markers.some((m) => m.id === markerId);
-
-        if (!markerExists) {
-          set({
-            error: createError("general", ERROR_MESSAGES.MARKER_NOT_FOUND),
-            isLoading: false,
-          });
-          return false;
-        }
-
-        set((state) => ({
-          markers: state.markers.filter((marker) => marker.id !== markerId),
-          isLoading: false,
-          error: null,
-        }));
-
-        return true;
-      } catch (error) {
-        const errorState = handleError(
-          error,
-          ERROR_MESSAGES.MARKER_DELETE_FAILED
-        );
-        set({ error: errorState, isLoading: false });
-        return false;
-      }
-    },
-
-    updateMarker: async (
-      markerId: string,
-      updates: MarkerUpdate
-    ): Promise<boolean> => {
-      try {
-        set({ isLoading: true, error: null });
-
-        const { markers } = get();
-        const markerIndex = markers.findIndex((m) => m.id === markerId);
-
-        if (markerIndex === -1) {
-          set({
-            error: createError("general", ERROR_MESSAGES.MARKER_NOT_FOUND),
-            isLoading: false,
-          });
-          return false;
-        }
-
-        set((state) => ({
-          markers: state.markers.map((marker) =>
-            marker.id === markerId
-              ? { ...marker, ...updates, updatedAt: new Date() }
-              : marker
-          ),
-          isLoading: false,
-          error: null,
-        }));
-
-        return true;
-      } catch (error) {
-        const errorState = handleError(
-          error,
-          ERROR_MESSAGES.MARKER_UPDATE_FAILED
-        );
-        set({ error: errorState, isLoading: false });
-        return false;
-      }
-    },
-
-    updateMarkerImages: async (
-      markerId: string,
-      images: readonly MarkerImage[]
-    ): Promise<boolean> => {
-      try {
-        set({ isLoading: true, error: null });
-
-        const success = await get().updateMarker(markerId, {
-          images: [...images],
         });
-        set({ isLoading: false });
-
-        return success;
-      } catch (error) {
-        const errorState = handleError(
-          error,
-          ERROR_MESSAGES.MARKER_UPDATE_FAILED
-        );
-        set({ error: errorState, isLoading: false });
         return false;
       }
-    },
+      await markersRepository.deleteMarker(markerId);
+      await get().loadMarkers();
+      set({ isLoading: false, error: null });
+      return true;
+    } catch (error) {
+      const errorState = handleError(
+        error,
+        ERROR_MESSAGES.MARKER_DELETE_FAILED
+      );
+      set({ error: errorState, isLoading: false });
+      return false;
+    }
+  },
 
-    getMarker: (markerId: string): MapMarker | undefined => {
-      return get().markers.find((marker) => marker.id === markerId);
-    },
+  saveImageToMarker: async (
+    markerId: string,
+    image: Omit<MarkerImage, "id">
+  ): Promise<boolean> => {
+    try {
+      set({ isLoading: true, error: null });
+      const marker = get().getMarker(markerId);
+      if (!marker) {
+        set({
+          error: createError("general", ERROR_MESSAGES.MARKER_NOT_FOUND),
+          isLoading: false,
+        });
+        return false;
+      }
+      await markersRepository.addImageToMarker(markerId, image);
+      await get().loadMarkers();
+      set({ isLoading: false, error: null });
+      return true;
+    } catch (error) {
+      const errorState = handleError(error, "Failed to save image to marker");
+      set({ error: errorState, isLoading: false });
+      return false;
+    }
+  },
 
-    clearError: () => {
-      set({ error: null });
-    },
+  deleteImageFromMarker: async (
+    markerId: string,
+    imageId: string
+  ): Promise<boolean> => {
+    try {
+      set({ isLoading: true, error: null });
+      const marker = get().getMarker(markerId);
+      if (!marker) {
+        set({
+          error: createError("general", ERROR_MESSAGES.MARKER_NOT_FOUND),
+          isLoading: false,
+        });
+        return false;
+      }
+      await markersRepository.removeImageFromMarker(imageId);
+      await get().loadMarkers();
+      set({ isLoading: false, error: null });
+      return true;
+    } catch (error) {
+      const errorState = handleError(
+        error,
+        "Failed to delete image from marker"
+      );
+      set({ error: errorState, isLoading: false });
+      return false;
+    }
+  },
 
-    setError: (error: ErrorState | null) => {
-      set({ error });
-    },
+  getMarker: (markerId: string): MapMarker | undefined => {
+    return get().markers.find((marker) => marker.id === markerId);
+  },
 
-    setLoading: (loading: boolean) => {
-      set({ isLoading: loading });
-    },
-  }))
-);
+  clearError: () => {
+    set({ error: null });
+  },
+
+  setError: (error: ErrorState | null) => {
+    set({ error });
+  },
+
+  setLoading: (loading: boolean) => {
+    set({ isLoading: loading });
+  },
+
+  reset: async (): Promise<void> => {
+    try {
+      set({ isLoading: true, error: null });
+      set({
+        markers: [],
+        isInitialized: false,
+        isLoading: false,
+        error: null,
+      });
+    } catch (error) {
+      const errorState = handleError(error, "Failed to reset markers store");
+      set({ error: errorState, isLoading: false });
+    }
+  },
+}));

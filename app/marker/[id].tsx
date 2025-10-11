@@ -73,10 +73,6 @@ export default function MarkerDetailsScreen() {
                 contentContainerStyle={{paddingBottom: 20}}
             >
                 <View style={[commonStyles.surface, commonStyles.padding, commonStyles.marginBottom]}>
-                    <Text style={commonStyles.title}>{marker.title}</Text>
-                    <Text style={[commonStyles.body, commonStyles.marginBottom]}>
-                        {marker.description}
-                    </Text>
                     <Text style={commonStyles.caption}>
                         Координаты: {formatCoordinate(marker.coordinate.latitude)}, {formatCoordinate(marker.coordinate.longitude)}
                     </Text>

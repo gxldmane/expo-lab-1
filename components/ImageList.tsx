@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useMemo } from 'react';
+import React, {memo, useCallback, useMemo} from 'react';
 import {
     View,
     Text,
@@ -9,9 +9,9 @@ import {
     Dimensions,
     ActivityIndicator,
 } from 'react-native';
-import { MarkerImage } from '@/types';
-import { UI_CONFIG, UI_TEXTS, SCREEN_CONFIG } from '@/constants/config';
-import { commonStyles, buttonStyles } from '@/styles/common';
+import {MarkerImage} from '@/types';
+import {UI_CONFIG, UI_TEXTS, SCREEN_CONFIG} from '@/constants/config';
+import {commonStyles, buttonStyles} from '@/styles/common';
 
 interface ImageListProps {
     readonly images: readonly MarkerImage[];
@@ -25,13 +25,13 @@ interface ImageItemProps {
     onDelete: (imageId: string, imageName: string) => void;
 }
 
-const { width } = Dimensions.get('window');
+const {width} = Dimensions.get('window');
 const imageSize = Math.max(
     Math.min(width / SCREEN_CONFIG.IMAGE_SIZE_RATIO, SCREEN_CONFIG.MAX_IMAGE_SIZE),
     SCREEN_CONFIG.MIN_IMAGE_SIZE
 );
 
-const ImageItem = memo<ImageItemProps>(({ image, onDelete }) => {
+const ImageItem = memo<ImageItemProps>(({image, onDelete}) => {
     const handleDelete = useCallback(() => {
         onDelete(image.id, image.name);
     }, [image.id, image.name, onDelete]);
@@ -42,15 +42,15 @@ const ImageItem = memo<ImageItemProps>(({ image, onDelete }) => {
             onLongPress={handleDelete}
             activeOpacity={0.8}
         >
-            <Image 
-                source={{ uri: image.uri }} 
+            <Image
+                source={{uri: image.uri}}
                 style={styles.image}
                 resizeMode="cover"
             />
             <TouchableOpacity
                 style={styles.deleteButton}
                 onPress={handleDelete}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}
             >
                 <Text style={styles.deleteButtonText}>×</Text>
             </TouchableOpacity>
@@ -60,18 +60,18 @@ const ImageItem = memo<ImageItemProps>(({ image, onDelete }) => {
 
 ImageItem.displayName = 'ImageItem';
 
-const ImageList = memo<ImageListProps>(({ 
-    images, 
-    onAddImage, 
-    onDeleteImage, 
-    isLoading = false 
-}) => {
+const ImageList = memo<ImageListProps>(({
+                                            images,
+                                            onAddImage,
+                                            onDeleteImage,
+                                            isLoading = false
+                                        }) => {
     const handleDeleteImage = useCallback((imageId: string, imageName: string) => {
         Alert.alert(
             UI_TEXTS.TITLES.CONFIRM_DELETE,
             `Вы уверены, что хотите удалить "${imageName}"?`,
             [
-                { text: UI_TEXTS.BUTTONS.CANCEL, style: 'cancel' },
+                {text: UI_TEXTS.BUTTONS.CANCEL, style: 'cancel'},
                 {
                     text: UI_TEXTS.BUTTONS.DELETE,
                     style: 'destructive',
@@ -96,13 +96,13 @@ const ImageList = memo<ImageListProps>(({
             <Text style={[commonStyles.title, styles.title]}>
                 {UI_TEXTS.TITLES.IMAGES} ({images.length})
             </Text>
-            <TouchableOpacity 
-                style={[buttonStyles.success, styles.addButton]} 
+            <TouchableOpacity
+                style={[buttonStyles.success, styles.addButton]}
                 onPress={onAddImage}
                 disabled={isLoading}
             >
                 {isLoading ? (
-                    <ActivityIndicator size="small" color={UI_CONFIG.colors.surface} />
+                    <ActivityIndicator size="small" color={UI_CONFIG.colors.surface}/>
                 ) : (
                     <Text style={buttonStyles.successText}>
                         {UI_TEXTS.BUTTONS.ADD_PHOTO}

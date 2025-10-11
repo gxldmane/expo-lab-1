@@ -1,52 +1,48 @@
-import React, { memo, useMemo } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
-import { ErrorState, ErrorType } from '@/types';
-import { UI_CONFIG } from '@/constants/config';
-import { errorStyles } from '@/styles/common';
+import React from "react";
+import {View, Text, TouchableOpacity, StyleSheet} from "react-native";
+import {ErrorState} from "@/types";
 
 interface ErrorHandlerProps {
     readonly error: ErrorState | null;
     onDismiss: () => void;
 }
 
-interface ErrorConfig {
-    readonly icon: string;
-    readonly color: string;
-}
-
-const ERROR_CONFIGS: Record<ErrorType, ErrorConfig> = {
-    image: { icon: '📷', color: UI_CONFIG.colors.warning },
-    navigation: { icon: '🧭', color: UI_CONFIG.colors.primary },
-    map: { icon: '🗺️', color: UI_CONFIG.colors.success },
-    general: { icon: '⚠️', color: UI_CONFIG.colors.error },
-    permission: { icon: '🔒', color: UI_CONFIG.colors.error },
-} as const;
-
-const ErrorHandler = memo<ErrorHandlerProps>(({ error, onDismiss }) => {
-    const config = useMemo(() => {
-        if (!error) return null;
-        return ERROR_CONFIGS[error.type] || ERROR_CONFIGS.general;
-    }, [error]);
-
-    if (!error || !config) return null;
+export default function ErrorHandler({error, onDismiss}: ErrorHandlerProps) {
+    if (!error) return null;
 
     return (
-        <View style={[errorStyles.container, { borderLeftColor: config.color }]}>
-            <View style={errorStyles.content}>
-                <Text style={errorStyles.icon}>{config.icon}</Text>
-                <Text style={errorStyles.message}>{error.message}</Text>
-            </View>
-            <TouchableOpacity 
-                style={errorStyles.closeButton} 
-                onPress={onDismiss}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-                <Text style={errorStyles.closeText}>×</Text>
+        <View style={styles.container}>
+            <Text style={styles.message}>{error.message}</Text>
+            <TouchableOpacity style={styles.button} onPress={onDismiss}>
+                <Text style={styles.buttonText}>Закрыть</Text>
             </TouchableOpacity>
         </View>
     );
+}
+
+const styles = StyleSheet.create({
+    container: {
+        backgroundColor: "#ffebee",
+        padding: 16,
+        margin: 16,
+        borderRadius: 8,
+        borderLeftWidth: 4,
+        borderLeftColor: "#f44336",
+    },
+    message: {
+        fontSize: 16,
+        marginBottom: 12,
+        color: "#333",
+    },
+    button: {
+        backgroundColor: "#f44336",
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 4,
+        alignSelf: "flex-start",
+    },
+    buttonText: {
+        color: "white",
+        fontWeight: "bold",
+    },
 });
-
-ErrorHandler.displayName = 'ErrorHandler';
-
-export default ErrorHandler;

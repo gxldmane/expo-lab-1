@@ -7,18 +7,19 @@ interface UseImagesProps {
 
 export function useImages({ markerId }: UseImagesProps) {
   const {
-    error,
-    isLoading,
-    addImageToMarker,
-    removeImageFromMarker,
-    clearError,
+    error: imagesError,
+    isLoading: imagesLoading,
+    pickImageForMarker,
+    clearError: clearImagesError,
   } = useImagesStore();
 
   const {
     markers,
-    getMarker,
-    updateMarkerImages,
     isLoading: markersLoading,
+    saveImageToMarker,
+    deleteImageFromMarker,
+    error: markersError,
+    clearError: clearMarkersError,
   } = useMarkersStore();
 
   const marker = useMemo(
@@ -29,31 +30,26 @@ export function useImages({ markerId }: UseImagesProps) {
   const images = useMemo(() => marker?.images || [], [marker?.images]);
 
   const addImage = useCallback(async () => {
-    await addImageToMarker(markerId, async (newImage) => {
-      const currentMarker = getMarker(markerId);
-      if (!currentMarker) return;
-
-      const currentImages = currentMarker.images || [];
-      const updatedImages = [...currentImages, newImage];
-      await updateMarkerImages(markerId, updatedImages);
-    });
-  }, [markerId, addImageToMarker, getMarker, updateMarkerImages]);
+    const imageData = await pickImageForMarker();
+    if (imageData) {
+      await saveImageToMarker(markerId, imageData);
+    }
+  }, [markerId, pickImageForMarker, saveImageToMarker]);
 
   const removeImage = useCallback(
     async (imageId: string) => {
-      await removeImageFromMarker(markerId, imageId, async () => {
-        const currentMarker = getMarker(markerId);
-        if (!currentMarker) return;
-
-        const currentImages = currentMarker.images || [];
-        const updatedImages = currentImages.filter((img) => img.id !== imageId);
-        await updateMarkerImages(markerId, updatedImages);
-      });
+      await deleteImageFromMarker(markerId, imageId);
     },
-    [markerId, removeImageFromMarker, getMarker, updateMarkerImages]
+    [markerId, deleteImageFromMarker]
   );
 
-  const totalLoading = isLoading || markersLoading;
+  const error = imagesError || markersError;
+  const clearError = useCallback(() => {
+    clearImagesError();
+    clearMarkersError();
+  }, [clearImagesError, clearMarkersError]);
+
+  const totalLoading = imagesLoading || markersLoading;
 
   return {
     images,

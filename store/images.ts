@@ -13,16 +13,7 @@ import { IMAGE_CONFIG, ERROR_MESSAGES, UI_TEXTS } from "@/constants/config";
 interface ImagesState {
   readonly error: ErrorState | null;
   readonly isLoading: boolean;
-
-  addImageToMarker: (
-    markerId: string,
-    onSuccess?: (image: MarkerImage) => void
-  ) => Promise<void>;
-  removeImageFromMarker: (
-    markerId: string,
-    imageId: string,
-    onSuccess?: () => void
-  ) => Promise<void>;
+  pickImageForMarker: () => Promise<Omit<MarkerImage, "id"> | null>;
   clearError: () => void;
   setError: (error: ErrorState | null) => void;
 }
@@ -30,7 +21,6 @@ interface ImagesState {
 const requestPermissions = async (): Promise<boolean> => {
   try {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
     if (status !== "granted") {
       Alert.alert(
         UI_TEXTS.PERMISSIONS.MEDIA_LIBRARY_TITLE,
@@ -38,22 +28,17 @@ const requestPermissions = async (): Promise<boolean> => {
       );
       return false;
     }
-
     return true;
-  } catch (error) {
-    console.error("Permission request failed:", error);
+  } catch {
     return false;
   }
 };
 
-export const useImagesStore = create<ImagesState>((set, get) => ({
+export const useImagesStore = create<ImagesState>((set) => ({
   error: null,
   isLoading: false,
 
-  addImageToMarker: async (
-    markerId: string,
-    onSuccess?: (image: MarkerImage) => void
-  ): Promise<void> => {
+  pickImageForMarker: async (): Promise<Omit<MarkerImage, "id"> | null> => {
     try {
       set({ isLoading: true, error: null });
 
@@ -63,7 +48,7 @@ export const useImagesStore = create<ImagesState>((set, get) => ({
           error: createError("permission", ERROR_MESSAGES.PERMISSION_DENIED),
           isLoading: false,
         });
-        return;
+        return null;
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -73,7 +58,7 @@ export const useImagesStore = create<ImagesState>((set, get) => ({
 
       if (result.canceled) {
         set({ isLoading: false });
-        return;
+        return null;
       }
 
       const asset = result.assets?.[0];
@@ -82,38 +67,30 @@ export const useImagesStore = create<ImagesState>((set, get) => ({
           error: createError("image", ERROR_MESSAGES.IMAGE_PICK_FAILED),
           isLoading: false,
         });
-        return;
+        return null;
       }
 
       const newImage = createMarkerImage(asset);
+      const imageData: Omit<MarkerImage, "id"> = {
+        uri: newImage.uri,
+        name: newImage.name,
+        dateAdded: newImage.dateAdded,
+      };
+
+      if (newImage.size !== undefined) {
+        (imageData as any).size = newImage.size;
+      }
+      if (newImage.type !== undefined) {
+        (imageData as any).type = newImage.type;
+      }
 
       set({ error: null, isLoading: false });
-      onSuccess?.(newImage);
+      return imageData;
     } catch (error) {
       const errorState = handleError(error, ERROR_MESSAGES.IMAGE_PICK_FAILED);
       set({ error: errorState, isLoading: false });
-
       Alert.alert("Ошибка", ERROR_MESSAGES.IMAGE_PICK_FAILED);
-    }
-  },
-
-  removeImageFromMarker: async (
-    markerId: string,
-    imageId: string,
-    onSuccess?: () => void
-  ): Promise<void> => {
-    try {
-      set({ isLoading: true, error: null });
-
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      set({ error: null, isLoading: false });
-      onSuccess?.();
-    } catch (error) {
-      const errorState = handleError(error, ERROR_MESSAGES.IMAGE_DELETE_FAILED);
-      set({ error: errorState, isLoading: false });
-
-      Alert.alert("Ошибка", ERROR_MESSAGES.IMAGE_DELETE_FAILED);
+      return null;
     }
   },
 

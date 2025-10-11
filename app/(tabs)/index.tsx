@@ -13,7 +13,7 @@ export default function HomeScreen() {
 
   const handleLongPress = useCallback(async (event: MapLongPressEvent) => {
     const { latitude, longitude } = event.nativeEvent.coordinate;
-    const markerId = await addMarker({ latitude, longitude });
+    await addMarker({ latitude, longitude });
   }, [addMarker]);
 
   const handleMarkerPress = useCallback((marker: MapMarker) => {
