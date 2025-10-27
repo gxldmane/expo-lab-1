@@ -59,8 +59,7 @@ const ImageItem = memo<ImageItemProps>(({image, onDelete}) => {
 ImageItem.displayName = 'ImageItem';
 
 const ImageList = memo<ImageListProps>(({ markerId }) => {
-    // Напрямую используем store
-    const marker = useMarkersStore((state) => 
+    const marker = useMarkersStore((state) =>
         state.markers.find((m) => m.id === markerId)
     );
     const saveImageToMarker = useMarkersStore((state) => state.saveImageToMarker);

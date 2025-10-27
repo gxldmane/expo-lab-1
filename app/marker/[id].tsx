@@ -18,8 +18,7 @@ import {commonStyles, buttonStyles} from '@/styles/common';
 export default function MarkerDetailsScreen() {
     const {id} = useLocalSearchParams<{ id: string }>();
     
-    // Напрямую используем store
-    const marker = useMarkersStore((state) => 
+    const marker = useMarkersStore((state) =>
         id ? state.markers.find((m) => m.id === id) : undefined
     );
     const removeMarker = useMarkersStore((state) => state.removeMarker);

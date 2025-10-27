@@ -114,3 +114,46 @@ export interface UIConfig {
     readonly lg: number;
   };
 }
+
+// Location types
+export interface LocationConfig {
+  readonly accuracy: number;
+  readonly timeInterval: number;
+  readonly distanceInterval: number;
+}
+
+export interface LocationState {
+  readonly location: {
+    coords: {
+      latitude: number;
+      longitude: number;
+      altitude: number | null;
+      accuracy: number | null;
+      altitudeAccuracy: number | null;
+      heading: number | null;
+      speed: number | null;
+    };
+    timestamp: number;
+  } | null;
+  readonly errorMsg: string | null;
+  readonly isTracking: boolean;
+}
+
+// Notification types
+export interface ActiveNotification {
+  readonly markerId: string;
+  readonly notificationId: string;
+  readonly timestamp: number;
+}
+
+export interface NotificationContent {
+  readonly title: string;
+  readonly body: string;
+  readonly data?: Record<string, any>;
+}
+
+export interface ProximityCheckResult {
+  readonly markerId: string;
+  readonly distance: number;
+  readonly isInRange: boolean;
+}

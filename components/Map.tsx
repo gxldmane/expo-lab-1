@@ -1,10 +1,11 @@
-import React, {memo, useCallback, useMemo} from 'react';
+import React, {memo, useCallback, useMemo, useEffect} from 'react';
 import {StyleSheet, Dimensions, Alert} from 'react-native';
-import MapView, {Marker, Region} from 'react-native-maps';
+import MapView, {Marker, Region, Circle} from 'react-native-maps';
 import {router} from 'expo-router';
 import {MapLongPressEvent} from '@/types';
-import {MAP_CONFIG, UI_CONFIG, ERROR_MESSAGES} from '@/constants/config';
+import {MAP_CONFIG, UI_CONFIG, ERROR_MESSAGES, LOCATION_CONFIG} from '@/constants/config';
 import {useMarkersStore} from '@/store';
+import {useProximityTracking} from '@/hooks/use-location';
 
 interface MapComponentProps {
     initialRegion?: Region;
@@ -23,9 +24,29 @@ const MapComponent = memo<MapComponentProps>(({
                                                   showsCompass = true,
                                                   rotateEnabled = true,
                                               }) => {
-    // Напрямую используем store
     const markers = useMarkersStore((state) => state.markers);
     const addMarker = useMarkersStore((state) => state.addMarker);
+
+    const {
+        isTracking,
+        errorMsg,
+        startProximityTracking,
+        stopProximityTracking,
+    } = useProximityTracking(markers);
+
+    useEffect(() => {
+        startProximityTracking();
+
+        return () => {
+            stopProximityTracking();
+        };
+    }, [startProximityTracking, stopProximityTracking]);
+
+    useEffect(() => {
+        if (errorMsg) {
+            Alert.alert('Ошибка местоположения', errorMsg);
+        }
+    }, [errorMsg]);
 
     const handleLongPress = useCallback(async (event: MapLongPressEvent) => {
         const { latitude, longitude } = event.nativeEvent.coordinate;
@@ -55,6 +76,19 @@ const MapComponent = memo<MapComponentProps>(({
         ));
     }, [markers, handleMarkerPress]);
 
+    const proximityCircles = useMemo(() => {
+        return markers.map((marker) => (
+            <Circle
+                key={`circle-${marker.id}`}
+                center={marker.coordinate}
+                radius={LOCATION_CONFIG.PROXIMITY_THRESHOLD}
+                strokeWidth={1}
+                strokeColor="rgba(0, 122, 255, 0.3)"
+                fillColor="rgba(0, 122, 255, 0.1)"
+            />
+        ));
+    }, [markers]);
+
     return (
         <MapView
             style={styles.map}
@@ -69,7 +103,9 @@ const MapComponent = memo<MapComponentProps>(({
             loadingEnabled
             loadingIndicatorColor={UI_CONFIG.colors.primary}
             loadingBackgroundColor={UI_CONFIG.colors.surface}
+            followsUserLocation={isTracking}
         >
+            {proximityCircles}
             {renderedMarkers}
         </MapView>
     );
