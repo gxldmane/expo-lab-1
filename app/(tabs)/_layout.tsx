@@ -1,7 +1,17 @@
 import {Tabs} from 'expo-router';
-import React from 'react';
+import React, {useEffect} from 'react';
+import {useMarkersStore} from '@/store';
 
 export default function TabLayout() {
+    const initialize = useMarkersStore((state) => state.initialize);
+    const isInitialized = useMarkersStore((state) => state.isInitialized);
+
+    useEffect(() => {
+        if (!isInitialized) {
+            initialize();
+        }
+    }, [isInitialized, initialize]);
+
     return (
         <Tabs
             screenOptions={{
@@ -15,7 +25,6 @@ export default function TabLayout() {
                 name="index"
                 options={{
                     title: 'MapLab',
-                    tabBarIcon: ({color}) => null,
                 }}
             />
         </Tabs>

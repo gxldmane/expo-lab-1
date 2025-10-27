@@ -12,12 +12,10 @@ import {
 import {MarkerImage} from '@/types';
 import {UI_CONFIG, UI_TEXTS, SCREEN_CONFIG} from '@/constants/config';
 import {commonStyles, buttonStyles} from '@/styles/common';
+import {useMarkersStore, useImagesStore} from '@/store';
 
 interface ImageListProps {
-    readonly images: readonly MarkerImage[];
-    onAddImage: () => void;
-    onDeleteImage: (imageId: string) => void;
-    isLoading?: boolean;
+    readonly markerId: string;
 }
 
 interface ImageItemProps {
@@ -60,12 +58,28 @@ const ImageItem = memo<ImageItemProps>(({image, onDelete}) => {
 
 ImageItem.displayName = 'ImageItem';
 
-const ImageList = memo<ImageListProps>(({
-                                            images,
-                                            onAddImage,
-                                            onDeleteImage,
-                                            isLoading = false
-                                        }) => {
+const ImageList = memo<ImageListProps>(({ markerId }) => {
+    // Напрямую используем store
+    const marker = useMarkersStore((state) => 
+        state.markers.find((m) => m.id === markerId)
+    );
+    const saveImageToMarker = useMarkersStore((state) => state.saveImageToMarker);
+    const deleteImageFromMarker = useMarkersStore((state) => state.deleteImageFromMarker);
+    const isMarkersLoading = useMarkersStore((state) => state.isLoading);
+    
+    const pickImageForMarker = useImagesStore((state) => state.pickImageForMarker);
+    const isImagesLoading = useImagesStore((state) => state.isLoading);
+
+    const images = useMemo(() => marker?.images || [], [marker?.images]);
+    const isLoading = isMarkersLoading || isImagesLoading;
+
+    const handleAddImage = useCallback(async () => {
+        const imageData = await pickImageForMarker();
+        if (imageData) {
+            await saveImageToMarker(markerId, imageData);
+        }
+    }, [markerId, pickImageForMarker, saveImageToMarker]);
+
     const handleDeleteImage = useCallback((imageId: string, imageName: string) => {
         Alert.alert(
             UI_TEXTS.TITLES.CONFIRM_DELETE,
@@ -75,11 +89,11 @@ const ImageList = memo<ImageListProps>(({
                 {
                     text: UI_TEXTS.BUTTONS.DELETE,
                     style: 'destructive',
-                    onPress: () => onDeleteImage(imageId),
+                    onPress: () => deleteImageFromMarker(markerId, imageId),
                 },
             ]
         );
-    }, [onDeleteImage]);
+    }, [markerId, deleteImageFromMarker]);
 
     const renderedImages = useMemo(() => {
         return images.map((image) => (
@@ -98,7 +112,7 @@ const ImageList = memo<ImageListProps>(({
             </Text>
             <TouchableOpacity
                 style={[buttonStyles.success, styles.addButton]}
-                onPress={onAddImage}
+                onPress={handleAddImage}
                 disabled={isLoading}
             >
                 {isLoading ? (

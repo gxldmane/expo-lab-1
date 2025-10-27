@@ -1,13 +1,12 @@
 import React, {memo, useCallback, useMemo} from 'react';
-import {StyleSheet, Dimensions} from 'react-native';
+import {StyleSheet, Dimensions, Alert} from 'react-native';
 import MapView, {Marker, Region} from 'react-native-maps';
-import {MapMarker, MapLongPressEvent} from '@/types';
-import {MAP_CONFIG, UI_CONFIG} from '@/constants/config';
+import {router} from 'expo-router';
+import {MapLongPressEvent} from '@/types';
+import {MAP_CONFIG, UI_CONFIG, ERROR_MESSAGES} from '@/constants/config';
+import {useMarkersStore} from '@/store';
 
 interface MapComponentProps {
-    readonly markers: readonly MapMarker[];
-    onLongPress: (event: MapLongPressEvent) => void;
-    onMarkerPress: (marker: MapMarker) => void;
     initialRegion?: Region;
     showsUserLocation?: boolean;
     showsMyLocationButton?: boolean;
@@ -18,19 +17,31 @@ interface MapComponentProps {
 const {width, height} = Dimensions.get('window');
 
 const MapComponent = memo<MapComponentProps>(({
-                                                  markers,
-                                                  onLongPress,
-                                                  onMarkerPress,
                                                   initialRegion = MAP_CONFIG.INITIAL_REGION,
                                                   showsUserLocation = true,
                                                   showsMyLocationButton = true,
                                                   showsCompass = true,
                                                   rotateEnabled = true,
                                               }) => {
+    // Напрямую используем store
+    const markers = useMarkersStore((state) => state.markers);
+    const addMarker = useMarkersStore((state) => state.addMarker);
 
-    const handleMarkerPress = useCallback((marker: MapMarker) => {
-        return () => onMarkerPress(marker);
-    }, [onMarkerPress]);
+    const handleLongPress = useCallback(async (event: MapLongPressEvent) => {
+        const { latitude, longitude } = event.nativeEvent.coordinate;
+        await addMarker({ coordinate: { latitude, longitude } });
+    }, [addMarker]);
+
+    const handleMarkerPress = useCallback((markerId: string) => {
+        return () => {
+            try {
+                router.push(`/marker/${markerId}`);
+            } catch (error) {
+                console.error('Navigation error:', error);
+                Alert.alert('Ошибка', ERROR_MESSAGES.NAVIGATION_FAILED);
+            }
+        };
+    }, []);
 
     const renderedMarkers = useMemo(() => {
         return markers.map((marker) => (
@@ -39,7 +50,7 @@ const MapComponent = memo<MapComponentProps>(({
                 coordinate={marker.coordinate}
                 title={marker.title}
                 description={marker.description}
-                onPress={handleMarkerPress(marker)}
+                onPress={handleMarkerPress(marker.id)}
             />
         ));
     }, [markers, handleMarkerPress]);
@@ -48,7 +59,7 @@ const MapComponent = memo<MapComponentProps>(({
         <MapView
             style={styles.map}
             initialRegion={initialRegion}
-            onLongPress={onLongPress}
+            onLongPress={handleLongPress}
             showsUserLocation={showsUserLocation}
             showsMyLocationButton={showsMyLocationButton}
             showsCompass={showsCompass}

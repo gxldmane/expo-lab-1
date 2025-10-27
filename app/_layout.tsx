@@ -14,13 +14,7 @@ export default function RootLayout() {
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen 
-          name="marker/[id]" 
-          options={{ 
-            title: 'Детали маркера',
-            headerBackTitle: 'Назад'
-          }} 
-        />
+        <Stack.Screen name="marker/[id]" options={{headerShown: false}}/>
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>

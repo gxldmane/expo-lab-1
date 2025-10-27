@@ -1,4 +1,4 @@
-import React, {useMemo, useCallback} from 'react';
+import React, {useCallback} from 'react';
 import {
     View,
     Text,
@@ -10,23 +10,31 @@ import {useLocalSearchParams, router} from 'expo-router';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import ImageList from '@/components/ImageList';
 import ErrorHandler from '@/components/ErrorHandler';
-import {useImages} from '@/hooks/use-images';
-import {useMarkers} from '@/hooks/use-markers';
+import {useMarkersStore, useImagesStore} from '@/store';
 import {ERROR_MESSAGES, UI_TEXTS} from '@/constants/config';
 import {formatCoordinate, formatDate} from '@/utils/helpers';
 import {commonStyles, buttonStyles} from '@/styles/common';
 
 export default function MarkerDetailsScreen() {
     const {id} = useLocalSearchParams<{ id: string }>();
-    const {getMarker, removeMarker, isLoading: markersLoading} = useMarkers();
-
-    const marker = useMemo(() => {
-        return id ? getMarker(id) : undefined;
-    }, [id, getMarker]);
-
-    const {images, error, isLoading, addImage, removeImage, clearError} = useImages({
-        markerId: id as string,
-    });
+    
+    // Напрямую используем store
+    const marker = useMarkersStore((state) => 
+        id ? state.markers.find((m) => m.id === id) : undefined
+    );
+    const removeMarker = useMarkersStore((state) => state.removeMarker);
+    const isMarkersLoading = useMarkersStore((state) => state.isLoading);
+    const markersError = useMarkersStore((state) => state.error);
+    const clearMarkersError = useMarkersStore((state) => state.clearError);
+    
+    const imagesError = useImagesStore((state) => state.error);
+    const clearImagesError = useImagesStore((state) => state.clearError);
+    
+    const error = markersError || imagesError;
+    const clearError = useCallback(() => {
+        clearMarkersError();
+        clearImagesError();
+    }, [clearMarkersError, clearImagesError]);
 
     const handleDeleteMarker = useCallback(async () => {
         if (!id) return;
@@ -88,7 +96,7 @@ export default function MarkerDetailsScreen() {
                     <TouchableOpacity
                         style={[buttonStyles.danger, {marginTop: 16}]}
                         onPress={handleDeleteMarker}
-                        disabled={markersLoading || isLoading}
+                        disabled={isMarkersLoading}
                     >
                         <Text style={buttonStyles.dangerText}>
                             {UI_TEXTS.BUTTONS.DELETE_MARKER}
@@ -99,12 +107,7 @@ export default function MarkerDetailsScreen() {
                 <ErrorHandler error={error} onDismiss={clearError}/>
 
                 <View style={[commonStyles.marginBottom, {marginHorizontal: 16}]}>
-                    <ImageList
-                        images={images}
-                        onAddImage={addImage}
-                        onDeleteImage={removeImage}
-                        isLoading={isLoading}
-                    />
+                    <ImageList markerId={id as string} />
                 </View>
             </ScrollView>
         </SafeAreaView>
