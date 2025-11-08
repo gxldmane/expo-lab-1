@@ -2,7 +2,6 @@ import React, { useEffect } from 'react';
 import { View } from 'react-native';
 import MapComponent from '@/components/Map';
 import ErrorHandler from '@/components/ErrorHandler';
-import LocationInfo from '@/components/LocationInfo';
 import { useMarkersStore } from '@/store';
 import { useLocation, useProximityTracking } from '@/hooks/use-location';
 import { commonStyles } from '@/styles/common';
@@ -11,10 +10,9 @@ export default function HomeScreen() {
   const error = useMarkersStore((state) => state.error);
   const clearError = useMarkersStore((state) => state.clearError);
   const markers = useMarkersStore((state) => state.markers);
-  
-  const locationState = useLocation();
-  const {
-    startProximityTracking,
+    useLocation();
+    const {
+        startProximityTracking,
     stopProximityTracking,
   } = useProximityTracking(markers);
 
@@ -38,7 +36,6 @@ export default function HomeScreen() {
   return (
     <View style={commonStyles.container}>
       <MapComponent />
-      <LocationInfo locationState={locationState} />
       <ErrorHandler error={error} onDismiss={clearError} />
     </View>
   );
